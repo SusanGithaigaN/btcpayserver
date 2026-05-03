@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace BTCPayServer.Models.ManageViewModels
 {
@@ -18,5 +21,7 @@ namespace BTCPayServer.Models.ManageViewModels
         [Display(Name = "Profile Picture")]
         public IFormFile ImageFile { get; set; }
         public string ImageUrl { get; set; }
+        public string? LanguageCode { get; set; }
+        public IEnumerable<SelectListItem> AvailableLanguages { get; set; } = Enumerable.Empty<SelectListItem>();
     }
 }

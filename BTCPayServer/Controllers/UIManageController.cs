@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Constants;
@@ -11,9 +12,13 @@ using BTCPayServer.Fido2;
 using BTCPayServer.Models.ManageViewModels;
 using BTCPayServer.Security.Greenfield;
 using BTCPayServer.Services;
+using BTCPayServer.Plugins.Translations;
 using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Localization;
@@ -40,6 +45,7 @@ namespace BTCPayServer.Controllers
         private readonly IFileService _fileService;
         private readonly EventAggregator _eventAggregator;
         private readonly PermissionService _permissionService;
+        private readonly LocalizerService _localizerService;
         readonly StoreRepository _StoreRepository;
         public IStringLocalizer StringLocalizer { get; }
 
@@ -60,7 +66,8 @@ namespace BTCPayServer.Controllers
           IStringLocalizer stringLocalizer,
           IHtmlHelper htmlHelper,
           EventAggregator eventAggregator,
-          PermissionService permissionService)
+          PermissionService permissionService,
+          LocalizerService localizerService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -79,6 +86,7 @@ namespace BTCPayServer.Controllers
             _StoreRepository = storeRepository;
             StringLocalizer = stringLocalizer;
             _permissionService = permissionService;
+            _localizerService = localizerService;
         }
 
         [HttpGet]
@@ -94,8 +102,15 @@ namespace BTCPayServer.Controllers
                 Name = blob.Name,
                 ImageUrl = string.IsNullOrEmpty(blob.ImageUrl) ? null : await _uriResolver.Resolve(Request.GetAbsoluteRootUri(), UnresolvedUri.Create(blob.ImageUrl)),
                 EmailConfirmed = user.EmailConfirmed,
-                RequiresEmailConfirmation = user.RequiresEmailConfirmation
+                RequiresEmailConfirmation = user.RequiresEmailConfirmation,
+                LanguageCode = blob.PreferredLanguage
             };
+            var dictionaries = await _localizerService.GetDictionaries();
+            var downloadableLanguages = LanguagePackUpdateService.GetDownloadableLanguages();
+            model.AvailableLanguages = dictionaries
+                .Where(d => downloadableLanguages.Contains(d.DictionaryName))
+                .Select(d => new SelectListItem(d.DictionaryName, d.DictionaryName))
+                .ToList();
             return View(model);
         }
 
@@ -152,6 +167,12 @@ namespace BTCPayServer.Controllers
                 needUpdate = true;
             }
 
+            if (blob.PreferredLanguage != model.LanguageCode)
+            {
+                blob.PreferredLanguage = model.LanguageCode;
+                needUpdate = true;
+            }
+
             if (model.ImageFile != null)
             {
                 var imageUpload = await _fileService.UploadImage(model.ImageFile, user.Id);
@@ -191,6 +212,14 @@ namespace BTCPayServer.Controllers
             else
             {
                 TempData[WellKnownTempData.ErrorMessage] = StringLocalizer["Error updating profile"].Value;
+            }
+
+            if (!string.IsNullOrEmpty(model.LanguageCode))
+            {
+                Response.Cookies.Append(
+                    CookieRequestCultureProvider.DefaultCookieName,
+                    CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(model.LanguageCode)),
+                    new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1) });
             }
 
             return RedirectToAction(nameof(Index));

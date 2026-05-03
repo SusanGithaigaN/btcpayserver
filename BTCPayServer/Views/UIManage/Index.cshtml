@@ -44,6 +44,13 @@
             <input asp-for="Name" class="form-control" />
             <span asp-validation-for="Name" class="text-danger"></span>
         </div>
+        <div class="form-group">
+            <label asp-for="LanguageCode" class="form-label" text-translate="true">Language</label>
+            <select asp-for="LanguageCode" asp-items="Model.AvailableLanguages" class="form-select">
+                <option value="" text-translate="true">Browser default</option>
+            </select>
+            <span asp-validation-for="LanguageCode" class="text-danger"></span>
+        </div>
         @if (canUpload)
         {
             <div class="form-group">

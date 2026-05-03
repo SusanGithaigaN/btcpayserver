@@ -53,5 +53,7 @@ namespace BTCPayServer.Data
         public string ImageUrl { get; set; }
         public string Name { get; set; }
         public string InvitationToken { get; set; }
+
+        public string PreferredLanguage { get; set; }
     }
 }
